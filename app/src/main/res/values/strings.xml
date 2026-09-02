@@ -1,0 +1,14 @@
+<resources>
+
+    <string name="app_name">E-PARKING</string>
+
+    <string name="titulo_eparking">E-PARKING</string>
+    <string name="menu_principal">Menú principal</string>
+    <string name="mis_vehiculos">Mis vehículos</string>
+    <string name="disponibilidad">Disponibilidad</string>
+    <string name="reservas">Reservas</string>
+    <string name="pagos">Pagos</string>
+    <string name="historial">Historial</string>
+    <string name="cerrar_sesion">Cerrar sesión</string>
+
+</resources>

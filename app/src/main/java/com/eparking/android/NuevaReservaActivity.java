@@ -9,11 +9,14 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.android.volley.DefaultRetryPolicy;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 public class NuevaReservaActivity extends AppCompatActivity {
@@ -24,7 +27,16 @@ public class NuevaReservaActivity extends AppCompatActivity {
     private EditText etHora;
 
     private static final String URL =
-            "http://192.168.1.6:8081/eparking/api/reservas";
+            ApiConfig.url("Reservas");
+
+    private static final String URL_VEHICULOS =
+            ApiConfig.url("Vehiculos");
+
+    /**
+     * Cache de la lista de vehículos para no consultar el
+     * servidor en cada intento de reserva.
+     */
+    private JSONArray vehiculosCache;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -85,10 +97,12 @@ public class NuevaReservaActivity extends AppCompatActivity {
         if (vehiculoTexto.isEmpty()) {
 
             etVehiculoId.setError(
-                    "Ingrese el ID del vehículo"
+                    "Ingrese el ID o la placa del vehículo"
             );
 
             etVehiculoId.requestFocus();
+
+            avisar("Ingrese el ID o la placa del vehículo");
 
             return;
         }
@@ -101,6 +115,8 @@ public class NuevaReservaActivity extends AppCompatActivity {
 
             etCupo.requestFocus();
 
+            avisar("Ingrese el cupo");
+
             return;
         }
 
@@ -111,6 +127,8 @@ public class NuevaReservaActivity extends AppCompatActivity {
             );
 
             etFecha.requestFocus();
+
+            avisar("Ingrese la fecha");
 
             return;
         }
@@ -123,23 +141,7 @@ public class NuevaReservaActivity extends AppCompatActivity {
 
             etHora.requestFocus();
 
-            return;
-        }
-
-        int vehiculoId;
-
-        try {
-
-            vehiculoId =
-                    Integer.parseInt(vehiculoTexto);
-
-        } catch (NumberFormatException e) {
-
-            etVehiculoId.setError(
-                    "El ID debe ser numérico"
-            );
-
-            etVehiculoId.requestFocus();
+            avisar("Ingrese la hora");
 
             return;
         }
@@ -169,6 +171,204 @@ public class NuevaReservaActivity extends AppCompatActivity {
 
             return;
         }
+
+        resolverVehiculo(
+                vehiculoTexto,
+                cupo,
+                fecha,
+                hora,
+                usuarioId
+        );
+    }
+
+    /**
+     * El usuario puede escribir el ID numérico del vehículo
+     * o su placa. Si escribe la placa, se busca en el servidor
+     * el ID que le corresponde, porque la tabla reservas solo
+     * acepta un entero en vehiculo_id.
+     */
+    private void resolverVehiculo(
+            String vehiculoTexto,
+            String cupo,
+            String fecha,
+            String hora,
+            int usuarioId
+    ) {
+
+        // Si es puramente numérico, ya es el ID.
+        if (vehiculoTexto.matches("\\d+")) {
+
+            enviarReserva(
+                    Integer.parseInt(vehiculoTexto),
+                    cupo,
+                    fecha,
+                    hora,
+                    usuarioId
+            );
+
+            return;
+        }
+
+        // Si es texto, se busca por placa.
+        buscarIdPorPlaca(
+                vehiculoTexto,
+                cupo,
+                fecha,
+                hora,
+                usuarioId
+        );
+    }
+
+    private void buscarIdPorPlaca(
+            String placa,
+            String cupo,
+            String fecha,
+            String hora,
+            int usuarioId
+    ) {
+
+        if (vehiculosCache != null) {
+
+            aplicarVehiculoPorPlaca(
+                    vehiculosCache,
+                    placa,
+                    cupo,
+                    fecha,
+                    hora,
+                    usuarioId
+            );
+
+            return;
+        }
+
+        RequestQueue queue =
+                Volley.newRequestQueue(this);
+
+        StringRequest request =
+                new StringRequest(
+                        Request.Method.GET,
+                        URL_VEHICULOS,
+
+                        response -> {
+
+                            try {
+
+                                vehiculosCache =
+                                        new JSONArray(response);
+
+                            } catch (Exception e) {
+
+                                Log.e(
+                                        "EPARKING_RESERVA",
+                                        "Respuesta de vehículos ilegible",
+                                        e
+                                );
+
+                                avisar("No se pudo leer la lista de vehículos");
+
+                                return;
+                            }
+
+                            aplicarVehiculoPorPlaca(
+                                    vehiculosCache,
+                                    placa,
+                                    cupo,
+                                    fecha,
+                                    hora,
+                                    usuarioId
+                            );
+
+                        },
+
+                        error -> {
+
+                            Log.e(
+                                    "EPARKING_RESERVA",
+                                    "Error al consultar vehículos",
+                                    error
+                            );
+
+                            avisar(
+                                    "No se pudo consultar la lista de vehículos. "
+                                            + "Verifique su conexión"
+                            );
+                        }
+                );
+
+        request.setRetryPolicy(
+                new DefaultRetryPolicy(
+                        15000,
+                        0,
+                        1.0f
+                )
+        );
+
+        queue.add(request);
+    }
+
+    private void aplicarVehiculoPorPlaca(
+            JSONArray vehiculos,
+            String placa,
+            String cupo,
+            String fecha,
+            String hora,
+            int usuarioId
+    ) {
+
+        for (int i = 0; i < vehiculos.length(); i++) {
+
+            JSONObject vehiculo = vehiculos.optJSONObject(i);
+
+            if (vehiculo == null) {
+                continue;
+            }
+
+            String placaRegistrada =
+                    vehiculo.optString("placa", "");
+
+            if (placaRegistrada.equalsIgnoreCase(placa)) {
+
+                int id = vehiculo.optInt("id", -1);
+
+                if (id == -1) {
+                    avisar("El vehículo no tiene un ID válido");
+                    return;
+                }
+
+                Log.d(
+                        "EPARKING_RESERVA",
+                        "Placa " + placa
+                                + " corresponde al ID " + id
+                );
+
+                enviarReserva(
+                        id,
+                        cupo,
+                        fecha,
+                        hora,
+                        usuarioId
+                );
+
+                return;
+            }
+        }
+
+        etVehiculoId.setError("No hay un vehículo con esa placa");
+
+        avisar(
+                "No se encontró un vehículo con la placa "
+                        + placa
+                        + ". Regístrala primero en Mis vehículos"
+        );
+    }
+
+    private void enviarReserva(
+            int vehiculoId,
+            String cupo,
+            String fecha,
+            String hora,
+            int usuarioId
+    ) {
 
         try {
 
@@ -264,9 +464,25 @@ public class NuevaReservaActivity extends AppCompatActivity {
 
                                 if (error.networkResponse != null) {
 
-                                    mensaje +=
-                                            "\nCódigo: "
-                                                    + error.networkResponse.statusCode;
+                                    int codigo =
+                                            error.networkResponse.statusCode;
+
+                                    if (codigo == 400) {
+
+                                        mensaje =
+                                                "El vehículo o el cupo no existen. "
+                                                        + "Revisa los datos e intenta otra vez";
+
+                                    } else if (codigo == 500) {
+
+                                        mensaje =
+                                                "Error interno del servidor al guardar la reserva";
+
+                                    } else {
+
+                                        mensaje +=
+                                                " (código " + codigo + ")";
+                                    }
                                 }
 
                                 Toast.makeText(
@@ -293,5 +509,19 @@ public class NuevaReservaActivity extends AppCompatActivity {
                     Toast.LENGTH_LONG
             ).show();
         }
+    }
+
+    /**
+     * Muestra un aviso visible. El setError por sí solo deja un
+     * icono pequeño que el usuario no ve, y la app parece no
+     * responder.
+     */
+    private void avisar(String mensaje) {
+
+        Toast.makeText(
+                this,
+                mensaje,
+                Toast.LENGTH_LONG
+        ).show();
     }
 }

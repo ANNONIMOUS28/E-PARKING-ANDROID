@@ -23,7 +23,7 @@ public class ReservasActivity extends AppCompatActivity {
     private TextView tvListaReservas;
 
     private static final String URL =
-            "http://192.168.1.6:8081/eparking/api/reservas";
+            ApiConfig.url("Reservas");
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

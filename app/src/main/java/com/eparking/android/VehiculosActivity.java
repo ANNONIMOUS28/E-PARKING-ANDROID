@@ -22,7 +22,7 @@ public class VehiculosActivity extends AppCompatActivity {
     private TextView tvListaVehiculos;
 
     private static final String URL =
-            "http://192.168.1.6:8081/eparking/api/vehiculos";
+            ApiConfig.url("Vehiculos");
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

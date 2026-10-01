@@ -21,7 +21,7 @@ public class HistorialActivity extends AppCompatActivity {
     private TextView tvListaHistorial;
 
     private static final String URL =
-            "http://192.168.1.6:8081/eparking/api/historial";
+            ApiConfig.url("Historial");
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

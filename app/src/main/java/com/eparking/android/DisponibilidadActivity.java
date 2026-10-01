@@ -21,7 +21,7 @@ public class DisponibilidadActivity extends AppCompatActivity {
     private TextView tvListaCupos;
 
     private static final String URL =
-            "http://192.168.1.6:8081/eparking/api/cupos";
+            ApiConfig.url("Cupos");
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

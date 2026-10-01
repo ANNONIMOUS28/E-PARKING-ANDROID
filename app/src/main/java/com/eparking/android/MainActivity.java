@@ -31,7 +31,7 @@ public class MainActivity extends AppCompatActivity {
     private EditText etPassword;
 
     private static final String URL =
-            "http://192.168.1.6:8081/eparking/api/auth";
+            ApiConfig.url("auth");
 
     private static final String TAG = "EPARKING_LOGIN";
 

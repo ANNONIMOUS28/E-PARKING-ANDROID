@@ -23,7 +23,7 @@ public class PagosActivity extends AppCompatActivity {
     private TextView tvListaPagos;
 
     private static final String URL =
-            "http://192.168.1.6:8081/eparking/api/pagos";
+            ApiConfig.url("Pagos");
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

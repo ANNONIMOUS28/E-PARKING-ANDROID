@@ -1,5 +1,27 @@
+import java.util.Properties
+
     plugins {
         alias(libs.plugins.android.application)
+    }
+
+    /*
+     * URL base del backend.
+     *
+     * Se lee de local.properties (NO versionado) para que cada equipo
+     * apunte a su propio servidor sin modificar archivos del repositorio.
+     * Si no esta definida, se usa el valor predeterminado de
+     * gradle.properties, que si se versiona.
+     */
+    val eparkingBaseUrl: String = run {
+        val localProperties = Properties()
+        val localPropertiesFile = rootProject.file("local.properties")
+
+        if (localPropertiesFile.exists()) {
+            localPropertiesFile.inputStream().use { localProperties.load(it) }
+        }
+
+        localProperties.getProperty("eparking.baseUrl")
+            ?: providers.gradleProperty("eparking.baseUrl").get()
     }
 
     android {
@@ -15,7 +37,17 @@
             versionCode = 1
             versionName = "1.0"
 
+            buildConfigField(
+                "String",
+                "EPARKING_BASE_URL",
+                "\"$eparkingBaseUrl\""
+            )
+
             testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        }
+
+        buildFeatures {
+            buildConfig = true
         }
 
         buildTypes {
